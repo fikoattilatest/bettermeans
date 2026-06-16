@@ -5,11 +5,29 @@ set -e
 # DB connection prefers DATABASE_URL (Railway) and falls back to PG* (local).
 pg_connect_rb="ENV['DATABASE_URL'].to_s != '' ? PG.connect(ENV['DATABASE_URL']) : PG.connect(:host => ENV['PGHOST'], :port => (ENV['PGPORT'] || 5432).to_i, :user => ENV['PGUSER'], :password => ENV['PGPASSWORD'], :dbname => ENV['PGDATABASE'])"
 
-# Wait for the database to be ready.
+# One-time network diagnostics so a failed connection is debuggable from logs.
+echo "=== DB connection diagnostics ==="
+echo "DATABASE_URL set: $([ -n "$DATABASE_URL" ] && echo yes || echo no)"
+echo "PGHOST=$PGHOST PGPORT=$PGPORT PGUSER=$PGUSER PGDATABASE=$PGDATABASE"
+echo "Resolving $PGHOST ..."
+getent hosts "$PGHOST" || echo "  (getent could not resolve $PGHOST)"
+echo "================================="
+
+# Wait for the database to be ready. Bounded loop: surface the real error and
+# give up after ~2 min so the failure is visible rather than an endless retry.
 echo "Waiting for PostgreSQL..."
-until bundle exec ruby -e "require 'pg'; ($pg_connect_rb)" 2>/dev/null; do
+attempt=0
+max_attempts=60
+until bundle exec ruby -e "require 'pg'; ($pg_connect_rb)"; do
+  attempt=$((attempt + 1))
+  if [ "$attempt" -ge "$max_attempts" ]; then
+    echo "ERROR: could not connect to PostgreSQL after $max_attempts attempts."
+    echo "Final resolution check for $PGHOST:"
+    getent hosts "$PGHOST" || echo "  (still cannot resolve $PGHOST)"
+    exit 1
+  fi
+  echo "  ...retrying ($attempt/$max_attempts)"
   sleep 2
-  echo "  ...retrying"
 done
 echo "PostgreSQL is ready."
 

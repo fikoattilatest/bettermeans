@@ -1,0 +1,9 @@
+# Container build/run files must keep LF endings so they work inside the Linux
+# image regardless of the host's core.autocrlf setting (a CRLF in
+# docker-entrypoint.sh's shebang breaks the script with "bad interpreter").
+*.sh                          text eol=lf
+docker-entrypoint.sh          text eol=lf
+Dockerfile                    text eol=lf
+docker-compose.yml            text eol=lf
+config/database.yml.railway   text eol=lf
+railway.toml                  text eol=lf

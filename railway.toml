@@ -1,0 +1,17 @@
+# Railway build + deploy config. Railway builds the Dockerfile; the container's
+# ENTRYPOINT runs migrations/seed on first boot, then the CMD starts WEBrick on
+# $PORT. Set these service variables in Railway:
+#   DATABASE_URL  -> reference the Postgres plugin (e.g. ${{Postgres.DATABASE_URL}})
+#   DISABLE_SSL   -> 1   (Railway terminates TLS at the edge; app speaks http)
+#   SECRET_TOKEN  -> a long random hex string (openssl rand -hex 64)
+
+[build]
+builder = "dockerfile"
+dockerfilePath = "Dockerfile"
+
+[deploy]
+# /login renders a 200 (the root path 302-redirects to the landing page).
+healthcheckPath = "/login"
+healthcheckTimeout = 300
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 3

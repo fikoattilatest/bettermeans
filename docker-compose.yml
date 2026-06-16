@@ -1,0 +1,48 @@
+# Local run of BetterMeans (Ruby 1.8.7 / Rails 2.3.14) + PostgreSQL.
+#
+#   docker compose up --build
+#
+# Postgres 9.6 is used deliberately: the jessie libpq client (9.4) that the
+# pg 0.14.1 gem links against speaks md5 auth, not the scram-sha-256 that
+# modern Postgres images default to.
+
+services:
+  db:
+    image: postgres:9.6
+    environment:
+      POSTGRES_USER: bettermeans
+      POSTGRES_PASSWORD: bettermeans
+      POSTGRES_DB: bettermeans_production
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bettermeans"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      RAILS_ENV: production
+      RACK_ENV: production
+      PGHOST: db
+      PGPORT: 5432
+      PGUSER: bettermeans
+      PGPASSWORD: bettermeans
+      PGDATABASE: bettermeans_production
+      # No TLS terminator in front of the app locally, so skip the forced
+      # http->https redirect (SslRequirement). Unset this in a real deploy.
+      DISABLE_SSL: "1"
+      # Local-only session secret. Generate a real one for any real deploy.
+      SECRET_TOKEN: localdev0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+    ports:
+      - "3000:3000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  pgdata:

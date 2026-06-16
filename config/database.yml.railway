@@ -1,0 +1,32 @@
+# Env-driven production DB config used in the container (copied to database.yml
+# by the Dockerfile). Works two ways:
+#   * Railway: set DATABASE_URL (reference the Postgres plugin's variable).
+#   * Local docker-compose: PGHOST/PGPORT/PGUSER/PGPASSWORD/PGDATABASE are set.
+<%
+  require 'uri'
+  _url = ENV['DATABASE_URL'].to_s
+  if _url != ''
+    _u    = URI.parse(_url)
+    _host = _u.host
+    _port = _u.port || 5432
+    _user = _u.user
+    _pass = _u.password
+    _name = (_u.path || '').sub(%r{^/}, '')
+  else
+    _host = ENV['PGHOST'] || 'localhost'
+    _port = ENV['PGPORT'] || 5432
+    _user = ENV['PGUSER']
+    _pass = ENV['PGPASSWORD']
+    _name = ENV['PGDATABASE']
+  end
+%>
+production:
+  adapter: postgresql
+  encoding: unicode
+  host: <%= _host %>
+  port: <%= _port %>
+  username: <%= _user %>
+  password: <%= _pass %>
+  database: <%= _name %>
+  pool: <%= ENV['DB_POOL'] || 5 %>
+  timeout: 5000

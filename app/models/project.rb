@@ -98,10 +98,13 @@ class Project < ActiveRecord::Base
   acts_as_fleximage do
     begin
       require_image false
-      if RAILS_ENV == 'production'
-        s3_bucket 'bettermeans_workstream_logos'
+      # Store project logos on S3 only when a bucket is configured via the
+      # environment (and aws_s3.rb has credentials); otherwise keep them on the
+      # local filesystem so the app boots without AWS.
+      if ENV['S3_LOGO_BUCKET'].to_s != ''
+        s3_bucket ENV['S3_LOGO_BUCKET']
       else
-        image_directory '/public/help'
+        image_directory File.join(RAILS_ROOT, 'public', 'fleximages')
       end
       preprocess_image do |image|
         image.resize '200x600'

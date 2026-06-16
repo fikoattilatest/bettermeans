@@ -3,7 +3,9 @@
 
 require 'uri'
 require 'cgi'
-require 'ruby-debug'
+# ruby-debug is a development-only tool and isn't bundled in production; load it
+# only if available so the app still boots when it's absent.
+begin; require 'ruby-debug'; rescue LoadError; end
 
 class ApplicationController < ActionController::Base
   include Redmine::I18n
@@ -12,8 +14,9 @@ class ApplicationController < ActionController::Base
   before_filter :set_user_ip
 
   include SslRequirement
-  # don't require ssl in development
-  skip_before_filter :ensure_proper_protocol if Rails.env.development?
+  # don't require ssl in development, or when DISABLE_SSL is set (e.g. local
+  # docker runs that have no TLS terminator in front of the app).
+  skip_before_filter :ensure_proper_protocol if Rails.env.development? || ENV['DISABLE_SSL'].to_s != ''
 
   layout 'gooey'
 

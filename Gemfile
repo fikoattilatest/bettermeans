@@ -4,7 +4,6 @@ gem 'rake', '0.8.7'
 
 gem 'rails', '2.3.14'
 
-gem 'ruby-debug', '0.10.4'
 gem 'rubytree', '0.7.0'
 gem 'rpx_now', '0.6.24'
 gem 'recurly', '0.3.3'
@@ -29,9 +28,19 @@ group :test do
   gem 'fakeweb'
 end
 
-group :development do
-  gem 'sqlite3-ruby', :require => 'sqlite3'
+# pg lives in :production so Bundler installs it when the test + development
+# groups are excluded in the Docker image. Left unpinned to match Gemfile.lock
+# (pg already resolves to 0.14.1), keeping the --deployment frozen check happy.
+group :production do
   gem 'pg'
+end
+
+group :development do
+  # ruby-debug moved here so the production image skips its native
+  # ruby-debug-base build (excluded via --without development). Pin unchanged,
+  # so Gemfile.lock stays in sync.
+  gem 'ruby-debug', '0.10.4'
+  gem 'sqlite3-ruby', :require => 'sqlite3'
   gem 'mysql2', '< 0.3'
   gem 'guard-rspec'
   gem 'spork', '0.8.5'

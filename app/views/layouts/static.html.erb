@@ -69,14 +69,26 @@
         $(this).children('a').children('span').fadeOut(200);
       });
 
-      $(".videolink").fancybox({
-                          'titleShow'     : true,
-                          'transitionIn'  : 'elastic',
-                          'transitionOut' : 'elastic',
-                          'href' : this.href,
-                          'type'      : 'swf',
-                          'swf'       : {'wmode':'transparent','allowfullscreen':'true'}
-              });
+      /* Flash is dead: open the YouTube video in a modern iframe popup.
+         The embed URL is derived from each link's href, supporting both the
+         legacy youtube.com/v/ID form and the standard watch?v=ID form. */
+      $(".videolink").click(function(e) {
+        e.preventDefault();
+        var href = this.href || '';
+        var m = href.match(/(?:[?&]v=|\/v\/|\/embed\/|youtu\.be\/)([A-Za-z0-9_\-]+)/);
+        var src = m ? ('https://www.youtube.com/embed/' + m[1] + '?autoplay=1&rel=0') : href;
+        $.fancybox({
+          'padding'       : 0,
+          'width'         : 853,
+          'height'        : 480,
+          'type'          : 'iframe',
+          'href'          : src,
+          'titleShow'     : true,
+          'title'         : this.title,
+          'transitionIn'  : 'elastic',
+          'transitionOut' : 'elastic'
+        });
+      });
 
       /* This is basic - uses default settings */
       $("a.fancy_image").fancybox({

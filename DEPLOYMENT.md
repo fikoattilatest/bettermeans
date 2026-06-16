@@ -197,3 +197,63 @@ Then log in with **admin / adminadmin**.
 | `password authentication failed` / scram errors | PG10+ scram vs libpq 9.4 md5 | Use `postgres:9.6` (md5) |
 | entrypoint "bad interpreter" | CRLF line endings | `.gitattributes` forces LF on `*.sh` |
 | RMagick `extconf.rb: undefined (?...) sequence` | rmagick 2.13.4 on Ruby 1.8.7 | Pin rmagick **2.13.1** |
+
+---
+
+## 6. Post-deployment content restoration
+
+After the app was live, several **content/link/media** problems remained — dead
+marketing pages, a missing help site, and broken (Flash / `http://`) videos.
+None of these touch the app's core logic; they restore content and repair media.
+All work was committed to `origin/master` and redeployed (`railway up -s web --ci`).
+
+### 6.1 Recovering dead pages from the Internet Archive
+The general procedure for any dead `bettermeans.org` / `help.bettermeans.com`
+page (WebFetch is blocked for `web.archive.org` — use `curl`):
+- Find captures with the CDX API:
+  `http://web.archive.org/cdx/search/cdx?url=<URL>&output=text&filter=statuscode:200`.
+- Fetch **raw** original content with the `id_` suffix
+  (`…/web/<timestamp>id_/<original-url>`); use `im_` for images, `cs_` for CSS.
+- Rewrite archive-relative URLs and external assets to **local** paths, strip the
+  Wayback wrapper, and save under `public/`.
+- **Reality check:** the archive is incomplete. For the help site only **14 of 71**
+  referenced images were ever captured; the other 57 are unrecoverable.
+
+### 6.2 Archived "Open Enterprise" pages → `public/front/`
+- Recreated `open_enterprise.html`, `open_enterprise_manifesto.html`,
+  `open_enterprise_governance_model.html` from the 2010 snapshot, with all
+  recoverable images + the white-paper PDF localized into `public/front/images/`.
+- `app/views/home/_footer.html.erb`: the three pages above now resolve locally;
+  the remaining `bettermeans.org` links (Blog, Contact, Team, Mission, Join Us)
+  point straight to the Internet Archive.
+
+### 6.3 Help site recreated → `public/help/`
+- 18 static guide pages + the Tender stylesheet, logo, and the 14 surviving
+  screenshots. YouTube Flash `<object>` embeds converted to iframes; the broken
+  Google Custom Search removed; cross-page links normalized to lowercase files.
+- `public/help/js/missing-image.js` replaces each never-archived image with a
+  small inline "image not archived" note instead of a broken-image box.
+- All dead in-app `http://help.bettermeans.com/*` links (views, mailer templates,
+  `config/locales/en.yml`) repointed to the new local `/help/*.html` pages.
+
+### 6.4 Video playback (Flash → modern HTTPS iframe)
+Two distinct breakages, both caused by 2010-era Flash/`http://` embeds:
+- **Marketing-page popups** (`app/views/layouts/static.html.erb`): the
+  `.videolink` fancybox used `type:'swf'` (dead Flash). Rewrote it to open a
+  `https://www.youtube.com/embed/<id>` **iframe** popup, deriving `<id>` from each
+  link's `href` (supports both legacy `/v/<id>` and `watch?v=<id>` forms). Link
+  hrefs on `index/why/how/what` pages updated to canonical `watch?v=…` URLs.
+- **Logged-in welcome & dashboard popups** (`config/locales/en.yml`): the tour
+  video was a Flash `<object>` pointing at `http://youtube.com/v/<id>`. On the
+  **HTTPS** production site that insecure embed is blocked as **mixed content**
+  (it works on `http://localhost`, which is the tell-tale symptom), so the popup
+  rendered blank. Replaced with a `https://…/embed/<id>` iframe.
+
+**Cheat-sheet additions:**
+
+| Symptom | Cause | Fix |
+|---|---|---|
+| Video area blank on prod but fine on `http://localhost` | `http://` embed blocked as mixed content on HTTPS | Use a `https://www.youtube.com/embed/<id>` iframe |
+| Video popup does nothing / "Flash not supported" | fancybox `type:'swf'` (Flash is dead) | Switch popup to `type:'iframe'` with the embed URL |
+| Recovered page shows broken images | Those images were never archived by Wayback | Accept the loss; degrade gracefully (`missing-image.js`) |
+| `curl` from `web.archive.org` returns an HTML wrapper, not the asset | Used the rendered URL | Use the `id_`/`im_`/`cs_` raw suffix |

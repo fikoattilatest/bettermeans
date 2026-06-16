@@ -5,17 +5,20 @@
 # breaking both `rake db:schema:load` and the running server on modern Postgres
 # (Railway runs 13+). Override the method to use a still-valid level.
 #
-# Named 00_ so it loads before any initializer that might open a DB connection.
-if defined?(ActiveRecord::ConnectionAdapters::PostgreSQLAdapter)
-  module ActiveRecord
-    module ConnectionAdapters
-      class PostgreSQLAdapter
-        def set_standard_conforming_strings
-          old, self.client_min_messages = client_min_messages, 'warning'
-          execute('SET standard_conforming_strings = on', 'SCHEMA') rescue nil
-        ensure
-          self.client_min_messages = old
-        end
+# The adapter is normally loaded lazily on first connect, so require it now to
+# force the real class to load BEFORE we reopen it (otherwise our override would
+# be clobbered when the gem's definition loads afterwards). Named 00_ so it runs
+# before any initializer that might open a DB connection.
+require 'active_record/connection_adapters/postgresql_adapter'
+
+module ActiveRecord
+  module ConnectionAdapters
+    class PostgreSQLAdapter
+      def set_standard_conforming_strings
+        old, self.client_min_messages = client_min_messages, 'warning'
+        execute('SET standard_conforming_strings = on', 'SCHEMA') rescue nil
+      ensure
+        self.client_min_messages = old
       end
     end
   end

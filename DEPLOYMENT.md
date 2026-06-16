@@ -243,6 +243,12 @@ Two distinct breakages, both caused by 2010-era Flash/`http://` embeds:
   `https://www.youtube.com/embed/<id>` **iframe** popup, deriving `<id>` from each
   link's `href` (supports both legacy `/v/<id>` and `watch?v=<id>` forms). Link
   hrefs on `index/why/how/what` pages updated to canonical `watch?v=…` URLs.
+  This was done in two passes: the first replaced the main per-page videos; a
+  later pass caught the remaining dead `/v/<id>` Flash links that the regex still
+  upgrades but which pointed at retired clips — e.g. the **Contribution-Based
+  Compensation** video on `how.html` was repointed from `/v/ydHazAMogaw` to
+  `watch?v=Fyjn0XQc9jc`. When auditing, grep each marketing page for leftover
+  `youtube.com/v/` hrefs, not just the `videolink` class.
 - **Logged-in welcome & dashboard popups** (`config/locales/en.yml`): the tour
   video was a Flash `<object>` pointing at `http://youtube.com/v/<id>`. On the
   **HTTPS** production site that insecure embed is blocked as **mixed content**

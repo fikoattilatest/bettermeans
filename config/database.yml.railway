@@ -23,6 +23,10 @@
 production:
   adapter: postgresql
   encoding: unicode
+  # Rails 2.3's PG adapter defaults client_min_messages to 'panic', a value
+  # PostgreSQL 9.6+ removed. Pin a still-valid level so schema:load works on
+  # modern Postgres (Railway runs 13+).
+  min_messages: warning
   host: <%= _host %>
   port: <%= _port %>
   username: <%= _user %>

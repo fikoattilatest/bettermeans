@@ -113,6 +113,19 @@ RUN set -e; \
 # default-group gems install — no mysql2/sqlite3/ruby-debug native compiles.
 RUN bundle install --deployment --without test development
 
+# Rails 2.3's PG adapter hardcodes client_min_messages='panic' in
+# set_standard_conforming_strings (run on every connection). PostgreSQL 9.6+
+# removed that value, so every connection raises on modern Postgres (Railway
+# runs 13+). Patch the gem source directly so it's correct as loaded — no
+# initializer load-order to get wrong. Build fails loudly if the line moves.
+RUN set -e; \
+    f="$(find /app/vendor/bundle -path '*activerecord-2.3.14/lib/active_record/connection_adapters/postgresql_adapter.rb' | head -n1)"; \
+    test -n "$f"; \
+    grep -q "client_min_messages, 'panic'" "$f"; \
+    sed -i "s/client_min_messages, 'panic'/client_min_messages, 'warning'/" "$f"; \
+    grep -q "client_min_messages, 'warning'" "$f"; \
+    echo "Patched panic->warning in $f"
+
 COPY . .
 
 # Provide a database.yml driven by env vars.
